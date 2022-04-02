@@ -185,7 +185,11 @@ func (b *blocks) update(window draw.Window) gameMode {
 	}
 
 	windowW, windowH := window.Size()
-	tileWidth := windowW / blockFieldWidth
+	// We want to have 6 blocks left and 6 blocks right of the field. We want to
+	// display the preview block on the right and the main game should be
+	// centered. Thus 6 for the preview block on the right, 6 on the left to
+	// have it be symetrical.
+	tileWidth := windowW / (blockFieldWidth + 12)
 	tileHeight := windowH / blockFieldHeight
 	tileSize := min(tileWidth, tileHeight)
 	fieldW := tileSize * blockFieldWidth
@@ -193,6 +197,7 @@ func (b *blocks) update(window draw.Window) gameMode {
 	xOffset := (windowW - fieldW) / 2
 	yOffset := (windowH - fieldH) / 2
 	borderColor := draw.RGB(0, 0, 0)
+	fieldBackground := draw.RGB(0.83, 0.77, 0.65)
 
 	// Draw background.
 	window.FillRect(
@@ -200,7 +205,7 @@ func (b *blocks) update(window draw.Window) gameMode {
 		yOffset,
 		blockFieldWidth*tileSize,
 		blockFieldHeight*tileSize,
-		draw.RGB(0.83, 0.77, 0.65),
+		fieldBackground,
 	)
 
 	drawTile := func(tileX, tileY int, color draw.Color) {
@@ -209,6 +214,7 @@ func (b *blocks) update(window draw.Window) gameMode {
 		window.FillRect(tileX+b, tileY+b, tileSize-2*b, tileSize-2*b, color)
 	}
 
+	// Draw the field, the pieces that are already solid.
 	for y := 0; y < blockFieldHeight; y++ {
 		for x := 0; x < blockFieldWidth; x++ {
 			kind := b.field[x][y]
@@ -221,11 +227,45 @@ func (b *blocks) update(window draw.Window) gameMode {
 		}
 	}
 
+	// Draw the currently active tetromino separately on top.
 	color := blockColors[b.thisPiece.kind]
 	for _, part := range b.thisPiece.parts() {
 		tileX := xOffset + part.x*tileSize
 		tileY := yOffset + part.y*tileSize
 		drawTile(tileX, tileY, color)
+	}
+
+	// Draw the preview tetromino.
+	minX, maxX, minY, maxY := 999, -999, 999, -999
+	for _, part := range b.nextPiece.parts() {
+		x, y := part.x, part.y
+		if x < minX {
+			minX = x
+		}
+		if x > maxX {
+			maxX = x
+		}
+		if y < minY {
+			minY = y
+		}
+		if y > maxY {
+			maxY = y
+		}
+	}
+	pieceW := (maxX - minX + 1) * tileSize
+	pieceH := (maxY - minY + 1) * tileSize
+	fieldRight := windowW/2 + (blockFieldWidth*tileSize)/2
+	previewX := fieldRight + tileSize/2
+	previewY := yOffset + (blockFieldHeight-5)*tileSize
+	previewSize := 5 * tileSize
+	xOffset = previewX + (previewSize-pieceW)/2
+	yOffset = previewY + (previewSize-pieceH)/2
+	window.FillRect(previewX, previewY, previewSize, previewSize, fieldBackground)
+	for _, part := range b.nextPiece.parts() {
+		x := (part.x - minX) * tileSize
+		y := (part.y - minY) * tileSize
+		color := blockColors[b.nextPiece.kind]
+		drawTile(xOffset+x, yOffset+y, color)
 	}
 
 	return b
