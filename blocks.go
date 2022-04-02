@@ -160,20 +160,28 @@ func (b *blocks) update(window draw.Window) gameMode {
 		}
 	}
 
+	resetPieceInGround := func() {
+		b.thisPiece.y--
+		b.field.place(&b.thisPiece)
+		b.thisPiece = b.nextPiece
+		b.nextPiece = randomTetromino()
+		b.field.clearFullRows()
+	}
+
 	if window.WasKeyPressed(draw.KeyDown) {
+		// Drop one down.
 		b.thisPiece.y++
 		if collides(&b.field, &b.thisPiece) {
-			b.thisPiece.y--
-			b.field.place(&b.thisPiece)
-			b.thisPiece = b.nextPiece
-			b.nextPiece = randomTetromino()
-			b.field.clearFullRows()
+			resetPieceInGround()
 		}
 	}
 
-	// TODO This is for debugging:
 	if window.WasKeyPressed(draw.KeySpace) {
-		b.thisPiece = randomTetromino()
+		// Drop all the way to the floor.
+		for !collides(&b.field, &b.thisPiece) {
+			b.thisPiece.y++
+		}
+		resetPieceInGround()
 	}
 
 	windowW, windowH := window.Size()
