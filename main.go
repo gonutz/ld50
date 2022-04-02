@@ -62,6 +62,7 @@ func main() {
 		}
 
 		window.SetFullscreen(globalFullscreen)
+		window.ShowCursor(!globalFullscreen)
 
 		mode = mode.update(window)
 	})

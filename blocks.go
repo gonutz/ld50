@@ -134,7 +134,16 @@ func (b *blocks) update(window draw.Window) gameMode {
 	}
 
 	if window.WasKeyPressed(draw.KeyUp) {
-		b.thisPiece.rotation = (b.thisPiece.rotation + 1) % 4
+		delta := 1
+		if window.IsKeyDown(draw.KeyLeftShift) || window.IsKeyDown(draw.KeyRightShift) {
+			delta = 3
+		}
+
+		old := b.thisPiece.rotation
+		b.thisPiece.rotation = (b.thisPiece.rotation + delta) % 4
+		if collides(&b.field, &b.thisPiece) {
+			b.thisPiece.rotation = old
+		}
 	}
 
 	if window.WasKeyPressed(draw.KeyLeft) {
@@ -155,9 +164,10 @@ func (b *blocks) update(window draw.Window) gameMode {
 		b.thisPiece.y++
 		if collides(&b.field, &b.thisPiece) {
 			b.thisPiece.y--
-			placeInField(&b.thisPiece, &b.field)
+			b.field.place(&b.thisPiece)
 			b.thisPiece = b.nextPiece
 			b.nextPiece = randomTetromino()
+			b.field.clearFullRows()
 		}
 	}
 
@@ -233,12 +243,40 @@ func collides(f *blocksField, t *tetromino) bool {
 	return false
 }
 
-func placeInField(t *tetromino, f *blocksField) {
+func (f *blocksField) place(t *tetromino) {
 	for _, part := range t.parts() {
 		x, y := part.x, part.y
 		if 0 <= x && x < blockFieldWidth &&
 			0 <= y && y < blockFieldHeight {
 			f[x][y] = t.kind
 		}
+	}
+}
+
+func (f *blocksField) clearFullRows() {
+	for y := 0; y < blockFieldHeight; y++ {
+		if f.rowFull(y) {
+			f.dropRowsInto(y)
+		}
+	}
+}
+
+func (f *blocksField) rowFull(y int) bool {
+	for x := 0; x < blockFieldWidth; x++ {
+		if f[x][y] == blockEmpty {
+			return false
+		}
+	}
+	return true
+}
+
+func (f *blocksField) dropRowsInto(fullY int) {
+	for y := fullY; y >= 1; y-- {
+		for x := 0; x < blockFieldWidth; x++ {
+			f[x][y] = f[x][y-1]
+		}
+	}
+	for x := 0; x < blockFieldWidth; x++ {
+		f[x][0] = blockEmpty
 	}
 }
