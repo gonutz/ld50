@@ -14,9 +14,12 @@ func newBlocks() *blocks {
 	}
 }
 
+type blocksField [blockFieldWidth][blockFieldHeight]blockKind
+
 type blocks struct {
-	thisPiece, nextPiece tetromino
-	field                [blockFieldWidth][blockFieldHeight]blockKind
+	thisPiece tetromino
+	nextPiece tetromino
+	field     blocksField
 }
 
 type blockKind int
@@ -136,14 +139,26 @@ func (b *blocks) update(window draw.Window) gameMode {
 
 	if window.WasKeyPressed(draw.KeyLeft) {
 		b.thisPiece.x--
+		if collides(&b.field, &b.thisPiece) {
+			b.thisPiece.x++
+		}
 	}
 
 	if window.WasKeyPressed(draw.KeyRight) {
 		b.thisPiece.x++
+		if collides(&b.field, &b.thisPiece) {
+			b.thisPiece.x--
+		}
 	}
 
 	if window.WasKeyPressed(draw.KeyDown) {
 		b.thisPiece.y++
+		if collides(&b.field, &b.thisPiece) {
+			b.thisPiece.y--
+			placeInField(&b.thisPiece, &b.field)
+			b.thisPiece = b.nextPiece
+			b.nextPiece = randomTetromino()
+		}
 	}
 
 	// TODO This is for debugging:
@@ -196,4 +211,34 @@ func (b *blocks) update(window draw.Window) gameMode {
 	}
 
 	return b
+}
+
+func collides(f *blocksField, t *tetromino) bool {
+	for _, part := range t.parts() {
+		x, y := part.x, part.y
+
+		// Check if we hit left/right/bottom walls, there is no wall at the top.
+		if x < 0 || x >= blockFieldWidth || y >= blockFieldHeight {
+			return true
+		}
+
+		// Check if the part is inside a solid block of the field.
+		if 0 <= x && x < blockFieldWidth &&
+			0 <= y && y < blockFieldHeight &&
+			f[x][y] != blockEmpty {
+			return true
+		}
+	}
+
+	return false
+}
+
+func placeInField(t *tetromino, f *blocksField) {
+	for _, part := range t.parts() {
+		x, y := part.x, part.y
+		if 0 <= x && x < blockFieldWidth &&
+			0 <= y && y < blockFieldHeight {
+			f[x][y] = t.kind
+		}
+	}
 }
