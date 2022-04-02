@@ -208,10 +208,22 @@ func (b *blocks) update(window draw.Window) gameMode {
 		fieldBackground,
 	)
 
-	drawTile := func(tileX, tileY int, color draw.Color) {
-		window.FillRect(tileX, tileY, tileSize, tileSize, borderColor)
+	drawColoredTile := func(tileX, tileY int, kind blockKind, transparent bool) {
+		color := blockColors[kind]
+		if transparent {
+			color.A = 0.4
+		}
+		if !transparent {
+			window.FillRect(tileX, tileY, tileSize, tileSize, borderColor)
+		}
 		b := tileSize / 15
 		window.FillRect(tileX+b, tileY+b, tileSize-2*b, tileSize-2*b, color)
+	}
+	drawTile := func(tileX, tileY int, kind blockKind) {
+		drawColoredTile(tileX, tileY, kind, false)
+	}
+	drawTransparentTile := func(tileX, tileY int, kind blockKind) {
+		drawColoredTile(tileX, tileY, kind, true)
 	}
 
 	// Draw the field, the pieces that are already solid.
@@ -221,18 +233,28 @@ func (b *blocks) update(window draw.Window) gameMode {
 			if kind != blockEmpty {
 				tileX := xOffset + x*tileSize
 				tileY := yOffset + y*tileSize
-				color := blockColors[kind]
-				drawTile(tileX, tileY, color)
+				drawTile(tileX, tileY, kind)
 			}
 		}
 	}
 
+	// Draw currently active tetromino's drop shadow.
+	dropped := b.thisPiece
+	for !collides(&b.field, &dropped) {
+		dropped.y++
+	}
+	dropped.y-- // Un-collide.
+	for _, part := range dropped.parts() {
+		tileX := xOffset + part.x*tileSize
+		tileY := yOffset + part.y*tileSize
+		drawTransparentTile(tileX, tileY, b.thisPiece.kind)
+	}
+
 	// Draw the currently active tetromino separately on top.
-	color := blockColors[b.thisPiece.kind]
 	for _, part := range b.thisPiece.parts() {
 		tileX := xOffset + part.x*tileSize
 		tileY := yOffset + part.y*tileSize
-		drawTile(tileX, tileY, color)
+		drawTile(tileX, tileY, b.thisPiece.kind)
 	}
 
 	// Draw the preview tetromino.
@@ -264,8 +286,7 @@ func (b *blocks) update(window draw.Window) gameMode {
 	for _, part := range b.nextPiece.parts() {
 		x := (part.x - minX) * tileSize
 		y := (part.y - minY) * tileSize
-		color := blockColors[b.nextPiece.kind]
-		drawTile(xOffset+x, yOffset+y, color)
+		drawTile(xOffset+x, yOffset+y, b.nextPiece.kind)
 	}
 
 	return b
