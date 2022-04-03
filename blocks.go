@@ -8,10 +8,12 @@ const (
 )
 
 func newBlocks() *blocks {
+	initialDropDelay := 60
 	return &blocks{
 		thisPiece:  randomTetromino(),
 		nextPiece:  randomTetromino(),
-		nextDropIn: 60,
+		dropDelay:  initialDropDelay,
+		nextDropIn: initialDropDelay,
 	}
 }
 
@@ -27,7 +29,9 @@ type blocks struct {
 	rightTimer int
 	down       bool
 	downTimer  int
+	dropDelay  int
 	nextDropIn int
+	score      int
 }
 
 type blockKind int
@@ -138,20 +142,21 @@ var blockColors = []draw.Color{
 
 func (b *blocks) update(window draw.Window) gameMode {
 	if window.WasKeyPressed(draw.KeyEscape) {
-		return newMenu()
+		return globalMenu
 	}
 
-	if window.WasKeyPressed(draw.KeyUp) {
-		delta := 1
-		if window.IsKeyDown(draw.KeyLeftShift) || window.IsKeyDown(draw.KeyRightShift) {
-			delta = 3
-		}
-
+	rotateBy := func(delta int) {
 		old := b.thisPiece.rotation
 		b.thisPiece.rotation = (b.thisPiece.rotation + delta) % 4
 		if collides(&b.field, &b.thisPiece) {
 			b.thisPiece.rotation = old
 		}
+	}
+	if window.WasKeyPressed(globalControls.rotateCW) {
+		rotateBy(1)
+	}
+	if window.WasKeyPressed(globalControls.rotateCCW) {
+		rotateBy(3)
 	}
 
 	moveX := func(dx int) {
@@ -161,24 +166,29 @@ func (b *blocks) update(window draw.Window) gameMode {
 		}
 	}
 
+	const (
+		leftRightInitialDelay = 13
+		leftRightRepeatDelay  = 4
+	)
+
 	b.leftTimer--
-	leftDown := window.IsKeyDown(draw.KeyLeft)
+	leftDown := window.IsKeyDown(globalControls.left)
 	if leftDown && !b.left || b.left && b.leftTimer <= 0 {
 		moveX(-1)
-		b.leftTimer = 7
+		b.leftTimer = leftRightRepeatDelay
 		if !b.left {
-			b.leftTimer = 15
+			b.leftTimer = leftRightInitialDelay
 		}
 	}
 	b.left = leftDown
 
 	b.rightTimer--
-	rightDown := window.IsKeyDown(draw.KeyRight)
+	rightDown := window.IsKeyDown(globalControls.right)
 	if rightDown && !b.right || b.right && b.rightTimer <= 0 {
 		moveX(1)
-		b.rightTimer = 7
+		b.rightTimer = leftRightRepeatDelay
 		if !b.right {
-			b.rightTimer = 15
+			b.rightTimer = leftRightInitialDelay
 		}
 	}
 	b.right = rightDown
@@ -188,14 +198,14 @@ func (b *blocks) update(window draw.Window) gameMode {
 		b.field.place(&b.thisPiece)
 		b.thisPiece = b.nextPiece
 		b.nextPiece = randomTetromino()
-		b.field.clearFullRows()
+		b.clearFullRows()
 		b.down = false
 	}
 
 	wasDropped := false
 
 	b.downTimer--
-	downDown := window.IsKeyDown(draw.KeyDown)
+	downDown := window.IsKeyDown(globalControls.dropOne)
 	if downDown && !b.down || b.down && b.downTimer <= 0 {
 		// Drop one down.
 		b.thisPiece.y++
@@ -211,7 +221,7 @@ func (b *blocks) update(window draw.Window) gameMode {
 	}
 	b.down = downDown
 
-	if window.WasKeyPressed(draw.KeySpace) {
+	if window.WasKeyPressed(globalControls.dropAll) {
 		// Drop all the way to the floor.
 		for !collides(&b.field, &b.thisPiece) {
 			b.thisPiece.y++
@@ -231,7 +241,11 @@ func (b *blocks) update(window draw.Window) gameMode {
 	}
 
 	if wasDropped {
-		b.nextDropIn = 60
+		b.nextDropIn = b.dropDelay
+		b.dropDelay--
+		if b.dropDelay < 4 {
+			b.dropDelay = 4
+		}
 	}
 
 	windowW, windowH := window.Size()
@@ -372,12 +386,16 @@ func (f *blocksField) place(t *tetromino) {
 	}
 }
 
-func (f *blocksField) clearFullRows() {
+func (b *blocks) clearFullRows() {
+	rows := 0
 	for y := 0; y < blockFieldHeight; y++ {
-		if f.rowFull(y) {
-			f.dropRowsInto(y)
+		if b.field.rowFull(y) {
+			rows++
+			b.field.dropRowsInto(y)
 		}
 	}
+	scores := []int{0, 1, 3, 6, 10}
+	b.score += scores[rows]
 }
 
 func (f *blocksField) rowFull(y int) bool {

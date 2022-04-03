@@ -5,6 +5,7 @@ import "github.com/gonutz/prototype/draw"
 const (
 	itemStartGame = iota
 	itemToggleFullscreen
+	itemControls
 	itemExitGame
 )
 
@@ -13,6 +14,7 @@ func newMenu() *menu {
 		items: []string{
 			"Start Game",
 			"Toggle Fullscreen (F11)",
+			"Controls",
 			"Quit (Escape)",
 		},
 	}
@@ -35,6 +37,8 @@ func (m *menu) update(window draw.Window) gameMode {
 			return newBlocks()
 		case itemToggleFullscreen:
 			toggleFullscreen(window)
+		case itemControls:
+			return globalControls
 		case itemExitGame:
 			window.Close()
 			return m
