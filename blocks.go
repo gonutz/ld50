@@ -3,8 +3,10 @@ package main
 import "github.com/gonutz/prototype/draw"
 
 const (
-	blockFieldWidth  = 10
-	blockFieldHeight = 18
+	blockFieldWidth      = 10
+	blockFieldHeight     = 18
+	minDropDelay         = 3
+	linesPerAcceleration = 10
 )
 
 func newBlocks() *blocks {
@@ -14,6 +16,8 @@ func newBlocks() *blocks {
 		nextPiece:  randomTetromino(),
 		dropDelay:  initialDropDelay,
 		nextDropIn: initialDropDelay,
+		// We increase the drop speed every linesPerAcceleration lines.
+		nextDropAccelerationLines: linesPerAcceleration,
 	}
 }
 
@@ -31,7 +35,11 @@ type blocks struct {
 	downTimer  int
 	dropDelay  int
 	nextDropIn int
+	lines      int
 	score      int
+	// nextDropAccelerationLines remembers after how many lines total the next
+	// drop speed increase happens.
+	nextDropAccelerationLines int
 }
 
 type blockKind int
@@ -199,6 +207,13 @@ func (b *blocks) update(window draw.Window) gameMode {
 		b.thisPiece = b.nextPiece
 		b.nextPiece = randomTetromino()
 		b.clearFullRows()
+		if b.lines >= b.nextDropAccelerationLines {
+			b.dropDelay = b.dropDelay * 3 / 4
+			b.nextDropAccelerationLines += 10
+		}
+		if b.dropDelay < minDropDelay {
+			b.dropDelay = minDropDelay
+		}
 		b.down = false
 	}
 
@@ -242,10 +257,6 @@ func (b *blocks) update(window draw.Window) gameMode {
 
 	if wasDropped {
 		b.nextDropIn = b.dropDelay
-		b.dropDelay--
-		if b.dropDelay < 4 {
-			b.dropDelay = 4
-		}
 	}
 
 	windowW, windowH := window.Size()
@@ -396,6 +407,7 @@ func (b *blocks) clearFullRows() {
 	}
 	scores := []int{0, 1, 3, 6, 10}
 	b.score += scores[rows]
+	b.lines += rows
 }
 
 func (f *blocksField) rowFull(y int) bool {
