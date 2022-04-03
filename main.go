@@ -74,7 +74,7 @@ func main() {
 
 	var mode gameMode = globalMenu
 
-	draw.RunWindow("Delay the Inevitable", 1000, 800, func(window draw.Window) {
+	draw.RunWindow("Schmetris - Delay the Inevitable", 1000, 800, func(window draw.Window) {
 		// F11 is not game state specific. It always toggles full screen.
 		// Instead of every state needing to handle it, we handle it globally
 		// here.
