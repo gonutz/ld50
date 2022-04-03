@@ -6,6 +6,7 @@ const (
 	itemStartGame = iota
 	itemToggleFullscreen
 	itemControls
+	itemHighscores
 	itemExitGame
 )
 
@@ -15,6 +16,7 @@ func newMenu() *menu {
 			"Start Game",
 			"Toggle Fullscreen (F11)",
 			"Controls",
+			"Highscores",
 			"Quit (Escape)",
 		},
 	}
@@ -39,6 +41,8 @@ func (m *menu) update(window draw.Window) gameMode {
 			toggleFullscreen(window)
 		case itemControls:
 			return globalControls
+		case itemHighscores:
+			return globalHighscores
 		case itemExitGame:
 			window.Close()
 			return m

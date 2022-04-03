@@ -22,6 +22,7 @@ var (
 	globalFullscreen = false
 	globalMenu       = newMenu()
 	globalControls   = newControlsMenu()
+	globalHighscores = newHighscoresMenu()
 )
 
 func toggleFullscreen(window draw.Window) {
@@ -39,6 +40,7 @@ func main() {
 		DropAllKey   int
 		RotateCWKey  int
 		RotateCCWKey int
+		Highscores   []int
 	}
 	settingsPath := filepath.Join(os.Getenv("APPDATA"), "ld50.settings")
 	if data, err := os.ReadFile(settingsPath); err == nil {
@@ -51,6 +53,7 @@ func main() {
 			setKey(&globalControls.dropAll, s.DropAllKey)
 			setKey(&globalControls.rotateCW, s.RotateCWKey)
 			setKey(&globalControls.rotateCCW, s.RotateCCWKey)
+			globalHighscores.scores = s.Highscores
 		}
 	}
 	defer func() {
@@ -62,6 +65,7 @@ func main() {
 			DropAllKey:   int(globalControls.dropAll),
 			RotateCWKey:  int(globalControls.rotateCW),
 			RotateCCWKey: int(globalControls.rotateCCW),
+			Highscores:   globalHighscores.scores,
 		}
 		if data, err := json.Marshal(&s); err == nil {
 			os.WriteFile(settingsPath, data, 0666)

@@ -282,7 +282,7 @@ func (b *blocks) update(window draw.Window) gameMode {
 
 	if b.dieIn <= 0 {
 		// TODO Die.
-		println("DEAD")
+		globalHighscores.addScore(b.score)
 		return globalMenu
 	}
 
