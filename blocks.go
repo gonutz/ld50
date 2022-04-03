@@ -1,21 +1,47 @@
 package main
 
-import "github.com/gonutz/prototype/draw"
+import (
+	"fmt"
+
+	"github.com/gonutz/prototype/draw"
+)
 
 const (
 	blockFieldWidth      = 10
 	blockFieldHeight     = 18
+	startX               = 3
+	startY               = 0
 	minDropDelay         = 3
 	linesPerAcceleration = 10
 )
 
 func newBlocks() *blocks {
+	// Everybody hates starting with a Z or S piece. Also bad is an O first,
+	// then an S or a Z because you inevitably create an empty space below the
+	// Z or S piece.
+	// To make this game feel nice, we make sure that the first piece is neither
+	// an S nor a Z. Also, if we start with an O, the second piece is not an S
+	// or a Z neither.
+	first := randomTetromino()
+	for first.kind == blockZ || first.kind == blockS {
+		first = randomTetromino()
+	}
+
+	second := randomTetromino()
+	if first.kind == blockO {
+		for second.kind == blockZ || second.kind == blockS {
+			second = randomTetromino()
+		}
+	}
+
 	initialDropDelay := 60
 	return &blocks{
-		thisPiece:  randomTetromino(),
-		nextPiece:  randomTetromino(),
+		thisPiece:  first,
+		nextPiece:  second,
 		dropDelay:  initialDropDelay,
 		nextDropIn: initialDropDelay,
+		speed:      1,
+		dieIn:      3,
 		// We increase the drop speed every linesPerAcceleration lines.
 		nextDropAccelerationLines: linesPerAcceleration,
 	}
@@ -37,6 +63,8 @@ type blocks struct {
 	nextDropIn int
 	lines      int
 	score      int
+	speed      int
+	dieIn      int
 	// nextDropAccelerationLines remembers after how many lines total the next
 	// drop speed increase happens.
 	nextDropAccelerationLines int
@@ -59,8 +87,8 @@ const (
 
 func randomTetromino() tetromino {
 	return tetromino{
-		x:    3,
-		y:    0,
+		x:    startX,
+		y:    startY,
 		kind: firstBlock + blockKind(randInt())%(lastBlock-firstBlock+1),
 	}
 }
@@ -203,16 +231,23 @@ func (b *blocks) update(window draw.Window) gameMode {
 
 	resetPieceInGround := func() {
 		b.thisPiece.y--
+		if b.thisPiece.x == startX && b.thisPiece.y == startY {
+			b.dieIn--
+		}
 		b.field.place(&b.thisPiece)
 		b.thisPiece = b.nextPiece
 		b.nextPiece = randomTetromino()
 		b.clearFullRows()
+		oldDropDelay := b.dropDelay
 		if b.lines >= b.nextDropAccelerationLines {
 			b.dropDelay = b.dropDelay * 3 / 4
 			b.nextDropAccelerationLines += 10
 		}
 		if b.dropDelay < minDropDelay {
 			b.dropDelay = minDropDelay
+		}
+		if b.dropDelay != oldDropDelay {
+			b.speed++
 		}
 		b.down = false
 	}
@@ -243,6 +278,12 @@ func (b *blocks) update(window draw.Window) gameMode {
 		}
 		resetPieceInGround()
 		wasDropped = true
+	}
+
+	if b.dieIn <= 0 {
+		// TODO Die.
+		println("DEAD")
+		return globalMenu
 	}
 
 	b.nextDropIn--
@@ -355,14 +396,39 @@ func (b *blocks) update(window draw.Window) gameMode {
 	previewX := fieldRight + tileSize/2
 	previewY := yOffset + (blockFieldHeight-5)*tileSize
 	previewSize := 5 * tileSize
-	xOffset = previewX + (previewSize-pieceW)/2
-	yOffset = previewY + (previewSize-pieceH)/2
+	previewXOffset := previewX + (previewSize-pieceW)/2
+	previewYOffset := previewY + (previewSize-pieceH)/2
 	window.FillRect(previewX, previewY, previewSize, previewSize, fieldBackground)
 	for _, part := range b.nextPiece.parts() {
 		x := (part.x - minX) * tileSize
 		y := (part.y - minY) * tileSize
-		drawTile(xOffset+x, yOffset+y, b.nextPiece.kind)
+		drawTile(previewXOffset+x, previewYOffset+y, b.nextPiece.kind)
 	}
+
+	// Draw some stats.
+	statsX := previewX
+	statsY := yOffset
+	statsSize := previewSize
+	window.FillRect(statsX, statsY, statsSize, statsSize, fieldBackground)
+	textScale := float32(windowH) / 500
+	stats := fmt.Sprintf(
+		`
+Lines: %d
+Score: %d
+Speed: %d
+`,
+		b.lines,
+		b.score,
+		b.speed,
+	)
+	statsW, statsH := window.GetScaledTextSize(stats, textScale)
+	window.DrawScaledText(
+		stats,
+		statsX+(statsSize-statsW)/2,
+		statsY+(statsSize-statsH)/2,
+		textScale,
+		draw.Black,
+	)
 
 	return b
 }
