@@ -17,9 +17,15 @@ func newBlocks() *blocks {
 type blocksField [blockFieldWidth][blockFieldHeight]blockKind
 
 type blocks struct {
-	thisPiece tetromino
-	nextPiece tetromino
-	field     blocksField
+	thisPiece  tetromino
+	nextPiece  tetromino
+	field      blocksField
+	left       bool
+	leftTimer  int
+	right      bool
+	rightTimer int
+	down       bool
+	downTimer  int
 }
 
 type blockKind int
@@ -146,19 +152,34 @@ func (b *blocks) update(window draw.Window) gameMode {
 		}
 	}
 
-	if window.WasKeyPressed(draw.KeyLeft) {
-		b.thisPiece.x--
+	moveX := func(dx int) {
+		b.thisPiece.x += dx
 		if collides(&b.field, &b.thisPiece) {
-			b.thisPiece.x++
+			b.thisPiece.x -= dx
 		}
 	}
 
-	if window.WasKeyPressed(draw.KeyRight) {
-		b.thisPiece.x++
-		if collides(&b.field, &b.thisPiece) {
-			b.thisPiece.x--
+	b.leftTimer--
+	leftDown := window.IsKeyDown(draw.KeyLeft)
+	if leftDown && !b.left || b.left && b.leftTimer <= 0 {
+		moveX(-1)
+		b.leftTimer = 7
+		if !b.left {
+			b.leftTimer = 15
 		}
 	}
+	b.left = leftDown
+
+	b.rightTimer--
+	rightDown := window.IsKeyDown(draw.KeyRight)
+	if rightDown && !b.right || b.right && b.rightTimer <= 0 {
+		moveX(1)
+		b.rightTimer = 7
+		if !b.right {
+			b.rightTimer = 15
+		}
+	}
+	b.right = rightDown
 
 	resetPieceInGround := func() {
 		b.thisPiece.y--
@@ -166,15 +187,24 @@ func (b *blocks) update(window draw.Window) gameMode {
 		b.thisPiece = b.nextPiece
 		b.nextPiece = randomTetromino()
 		b.field.clearFullRows()
+		b.down = false
 	}
 
-	if window.WasKeyPressed(draw.KeyDown) {
+	b.downTimer--
+	downDown := window.IsKeyDown(draw.KeyDown)
+	if downDown && !b.down || b.down && b.downTimer <= 0 {
 		// Drop one down.
 		b.thisPiece.y++
 		if collides(&b.field, &b.thisPiece) {
 			resetPieceInGround()
 		}
+
+		b.downTimer = 3
+		if !b.down {
+			b.downTimer = 20
+		}
 	}
+	b.down = downDown
 
 	if window.WasKeyPressed(draw.KeySpace) {
 		// Drop all the way to the floor.
