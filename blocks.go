@@ -9,8 +9,9 @@ const (
 
 func newBlocks() *blocks {
 	return &blocks{
-		thisPiece: randomTetromino(),
-		nextPiece: randomTetromino(),
+		thisPiece:  randomTetromino(),
+		nextPiece:  randomTetromino(),
+		nextDropIn: 60,
 	}
 }
 
@@ -26,6 +27,7 @@ type blocks struct {
 	rightTimer int
 	down       bool
 	downTimer  int
+	nextDropIn int
 }
 
 type blockKind int
@@ -190,6 +192,8 @@ func (b *blocks) update(window draw.Window) gameMode {
 		b.down = false
 	}
 
+	wasDropped := false
+
 	b.downTimer--
 	downDown := window.IsKeyDown(draw.KeyDown)
 	if downDown && !b.down || b.down && b.downTimer <= 0 {
@@ -198,6 +202,7 @@ func (b *blocks) update(window draw.Window) gameMode {
 		if collides(&b.field, &b.thisPiece) {
 			resetPieceInGround()
 		}
+		wasDropped = true
 
 		b.downTimer = 3
 		if !b.down {
@@ -212,6 +217,21 @@ func (b *blocks) update(window draw.Window) gameMode {
 			b.thisPiece.y++
 		}
 		resetPieceInGround()
+		wasDropped = true
+	}
+
+	b.nextDropIn--
+	if !wasDropped && b.nextDropIn <= 0 {
+		// Drop one down.
+		b.thisPiece.y++
+		if collides(&b.field, &b.thisPiece) {
+			resetPieceInGround()
+		}
+		wasDropped = true
+	}
+
+	if wasDropped {
+		b.nextDropIn = 60
 	}
 
 	windowW, windowH := window.Size()
